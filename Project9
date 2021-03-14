@@ -1,0 +1,315 @@
+// Link to assignment:
+// https://replit.com/@BradenWolf/BradenWolfCSS133Project9#main.cpp
+
+// file: Readme.txt
+// At a high level, this is a weekly planner to organize when assignments are
+// done. This program recieves a week of days and the hours available to work on
+// those days from a user. It also receives the users assignments for the week,
+// the expected hours to complete those assignments, and the priority of the
+// assignments. Then, the assignments are bubble sorted by priority, with the
+// lowest number being the highest priority and being moved to the front. Next,
+// assignments are assigned to the days starting with the first day entered with
+// the highest priority (lowest number) assignment going first. Finally, it
+// prints the assignments with their information and the days with their
+// information.
+//
+// topics
+// 1. linked list
+// 2. sorting
+// 3. operator overloading
+
+// file: sampleDays1
+// Sunday 4
+// Monday 5
+// Tuesday 6
+// Wednesday 7
+// Thursday 3
+// Friday 0
+// Saturday 8
+
+// file: sampleDays2
+// Friday 0
+// Saturday 8
+// Sunday 4
+// Monday 5
+// Tuesday 6
+// Wednesday 7
+// Thursday 3
+
+// file: sampleAssignments1
+// assignmentOne 5 4
+// assignmentTwo 7 2
+// assignmentThree 6 3
+// assignmentFour 3 1
+
+// file: sampleAssignments2
+// assignmentOne 5 4
+// assignmentTwo 7 2
+// assignmentThree 6 3
+// assignmentFour 3 1
+// assignmentFive 20 5
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+
+class days {
+  friend std::istream &operator>>(std::istream &ins, days &d);
+
+public:
+  days() : name{""}, hours{0}, nextDay{nullptr} {}
+  days(std::string name) : name{name}, hours{0} {}
+  days &operator=(const days other);
+  void setName(std::string name) { this->name = name; }
+  std::string getName() { return this->name; }
+  void setHours(int hours) { this->hours = hours; }
+  int getHours() { return this->hours; }
+  void setAssignment(std::string name) { this->assignments.push_back(name); }
+  std::vector<std::string> getAssignment() { return this->assignments; }
+  void setNextDay(days *nextDay) { this->nextDay = nextDay; }
+  days *getNextDay() { return this->nextDay; }
+
+private:
+  std::string name;
+  int hours;
+  std::vector<std::string> assignments;
+  days *nextDay;
+};
+
+class assignments {
+  friend std::istream &operator>>(std::istream &ins, assignments &a);
+
+public:
+  assignments() : name{""}, hours{0}, priority{0}, nextAssignment{nullptr} {}
+  void setName(std::string name) { this->name = name; }
+  std::string getName() { return this->name; }
+  void setHours(int hours) { this->hours = hours; }
+  int getHours() { return this->hours; }
+  void setPriority(int priority) { this->priority = priority; }
+  int getPriority() { return priority; }
+  void setNextAssignment(assignments *nextAssignment) {
+    this->nextAssignment = nextAssignment;
+  }
+  assignments *getNextAssignment() { return this->nextAssignment; }
+  assignments &operator=(assignments &other);
+
+private:
+  std::string name;
+  int hours;
+  int priority; // lower priority is more imported
+  assignments *nextAssignment;
+};
+
+std::istream &operator>>(std::istream &ins, days *d) {
+  std::string name;
+  int hours;
+  ins >> name;
+  ins >> hours;
+  d->setName(name);
+  d->setHours(hours);
+  return ins;
+}
+
+std::istream &operator>>(std::istream &ins, assignments *a) {
+  std::string name;
+  int hours;
+  int priority;
+  ins >> name;
+  ins >> hours;
+  ins >> priority;
+  a->setName(name);
+  a->setHours(hours);
+  a->setPriority(priority);
+  return ins;
+}
+
+assignments &assignments::operator=(assignments &other) {
+  this->setName(other.getName());
+  this->setHours(other.getHours());
+  this->setPriority(other.getPriority());
+  this->setNextAssignment(other.getNextAssignment());
+  return *this;
+}
+
+// creates linked list of days
+void createDays(days *header) {
+  days *prevDay = header;
+  days *currDay = nullptr;
+  std::ifstream ifs("sampleDays2");
+
+  for (int i = 0; i < 7; i++) {
+    currDay = new days;
+    ifs >> currDay;
+    prevDay->setNextDay(currDay);
+    prevDay = currDay;
+  }
+}
+
+// creates linked list of assignments
+void createAssignments(assignments *Header) {
+  assignments *prevAssignment = Header;
+  assignments *currAssignment = nullptr;
+  std::ifstream ifs("sampleAssignments2");
+
+  while (!ifs.fail()) {
+    currAssignment = new assignments;
+    ifs >> currAssignment;
+    prevAssignment->setNextAssignment(currAssignment);
+    prevAssignment = currAssignment;
+  }
+}
+
+// Bubble sorts assignments by priority. Lower priority is more important and
+// moved to the front.
+void sortAssignments(assignments &header) {
+  bool pass;
+  assignments *prevAssignment = &header;
+  assignments *currAssignment = header.getNextAssignment();
+  do {
+    pass = true;
+    while (currAssignment->getNextAssignment() != nullptr) {
+      if (currAssignment->getPriority() >
+          currAssignment->getNextAssignment()->getPriority()) {
+        prevAssignment->setNextAssignment(currAssignment->getNextAssignment());
+        currAssignment->setNextAssignment(
+            currAssignment->getNextAssignment()->getNextAssignment());
+        prevAssignment->getNextAssignment()->setNextAssignment(currAssignment);
+
+        prevAssignment = prevAssignment->getNextAssignment();
+        pass = false;
+      } else {
+        prevAssignment = currAssignment;
+        currAssignment = currAssignment->getNextAssignment();
+      }
+    }
+    prevAssignment = &header;
+    currAssignment = header.getNextAssignment();
+  } while (pass == false);
+}
+
+// Fills the days with assignments dependant on how many hours are available to
+// work on a given day and how many hours the assignment is expected to take.
+void fillDays(days *daysHeader, assignments *assignmentsHeader) {
+  days *currDay = daysHeader->getNextDay();
+  assignments *currAssignment = assignmentsHeader->getNextAssignment();
+  int currDayAvailableHours = currDay->getHours();
+  int currAssignmentNeededHours = currAssignment->getHours();
+  while (currAssignment->getName() != "") {
+    // assigns current assignment to be done on current day
+    if (currDayAvailableHours != 0) {
+      currDay->setAssignment(currAssignment->getName());
+    }
+    // subtracts the expected hours to complete assignment from the current day
+    // available hours
+    currDayAvailableHours -= currAssignmentNeededHours;
+    // checks if current day has any more hours available
+    // if ran out of days then let the user know they they to adjust their
+    // available hours to finish the assignments
+    if (currDay->getNextDay() == nullptr) {
+      std::cout << std::endl
+                << "Ran out of time, add more hours to your days if you want "
+                   "to complete your assignments this week."
+                << std::endl
+                << std::endl;
+      break;
+    }
+    // if the exact hours are used of a day, then move on to next day and next
+    // assignment
+    else if (currDayAvailableHours == 0) {
+      currDay = currDay->getNextDay();
+      currDayAvailableHours = currDay->getHours();
+      currAssignment->getNextAssignment();
+      currAssignmentNeededHours = currAssignment->getHours();
+    }
+    // if the available hours of the current day is greater than 0, then the day
+    // can be filled with another assignment
+    else if (currDayAvailableHours > 0) {
+      currAssignment = currAssignment->getNextAssignment();
+      currAssignmentNeededHours = currAssignment->getHours();
+    }
+    // if the available hours of a day are less than 0, then the current
+    // assignment still needs more work, adjust the
+    // current assignment needed hours depending on how many hours were alreaady
+    // worked and move to the next day
+    else if (currDayAvailableHours < 0) {
+      currAssignmentNeededHours = currDayAvailableHours * -1;
+      currDay = currDay->getNextDay();
+      // if (currDay->getNextDay() == nullptr) {
+      //   break;
+      // }
+      currDayAvailableHours = currDay->getHours();
+    }
+  }
+}
+
+void printAssignments(assignments &header) {
+  std::cout << "Assignments: " << std::endl;
+  assignments *currAssignment = header.getNextAssignment();
+  while (currAssignment->getNextAssignment() != nullptr) {
+    std::cerr << currAssignment->getName()
+              << ". Expected Hours: " << currAssignment->getHours()
+              << ". Priority: " << currAssignment->getPriority() << std::endl;
+    currAssignment = currAssignment->getNextAssignment();
+  }
+  std::cout << std::endl;
+}
+
+void printDays(days &header) {
+  std::cout << "Days: " << std::endl;
+  days *currDay = header.getNextDay();
+  for (int i = 0; i < 7; i++) {
+    std::cerr << currDay->getName()
+              << ". Available Hours: " << currDay->getHours()
+              << ". Assignments: ";
+    std::vector<std::string> assignments = currDay->getAssignment();
+    int count = assignments.size();
+    for (int j = 0; j < count; j++) {
+      std::cerr << assignments[j] << " ";
+    }
+    std::cerr << std::endl;
+    currDay = currDay->getNextDay();
+  }
+}
+
+void deleteDays(days *header) {
+  days *prevDay = header->getNextDay();
+  days *currDay = header->getNextDay()->getNextDay();
+  while (currDay != nullptr) {
+    delete prevDay;
+    prevDay = currDay;
+    currDay = currDay->getNextDay();
+  }
+  delete prevDay;
+}
+
+void deleteAssignments(assignments *header) {
+  assignments *prevAssignment = header->getNextAssignment();
+  assignments *currAssignment =
+      header->getNextAssignment()->getNextAssignment();
+  while (currAssignment != nullptr) {
+    delete prevAssignment;
+    prevAssignment = currAssignment;
+    currAssignment = currAssignment->getNextAssignment();
+  }
+  delete prevAssignment;
+}
+
+int main() {
+  days daysHeader;
+  std::cout << "Please enter a week of days (going in order, and don't "
+               "repeat days) and your hours available to work on those days: "
+            << std::endl;
+  createDays(&daysHeader);
+  assignments assignmentsHeader;
+  std::cout << "Please enter your assignments and the expected hours to "
+               "complete those assignments: "
+            << std::endl
+            << std::endl;
+  createAssignments(&assignmentsHeader);
+  sortAssignments(assignmentsHeader);
+  fillDays(&daysHeader, &assignmentsHeader);
+  printAssignments(assignmentsHeader);
+  printDays(daysHeader);
+  deleteDays(&daysHeader);
+  deleteAssignments(&assignmentsHeader);
+}
